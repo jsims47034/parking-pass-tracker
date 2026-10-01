@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Temporary Parking Pass Request</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+body{margin:0;background:#eef2f7;display:flex;justify-content:center;padding:20px}
+.card{background:#fff;max-width:480px;width:100%;padding:28px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.1)}
+h1{font-size:22px;margin:0 0 6px;color:#1f3a5f}
+p.sub{margin:0 0 20px;color:#555;font-size:14px}
+label{display:block;font-weight:bold;font-size:14px;margin:14px 0 6px}
+input{width:100%;padding:11px;border:1px solid #ccc;border-radius:8px;font-size:15px}
+input:focus{outline:none;border-color:#1f3a5f}
+button{width:100%;margin-top:22px;padding:13px;border:none;border-radius:8px;background:#1f3a5f;color:#fff;font-size:16px;cursor:pointer}
+button.secondary{background:#888;margin-top:10px}
+button:disabled{background:#aaa;cursor:not-allowed}
+.due{background:#fff4e5;border-left:5px solid #f0a020;padding:14px;border-radius:6px;margin:16px 0}
+.due strong{font-size:18px;color:#b35c00}
+.terms{background:#f7f7f7;padding:14px;border-radius:6px;font-size:14px;line-height:1.5}
+.check{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:14px}
+.check input{width:auto;margin-top:3px}
+.err{color:#c0392b;font-size:13px;margin-top:6px;display:none}
+.hidden{display:none}
+.success{text-align:center}
+.success h1{color:#1e8449}
+</style>
+</head>
+<body>
+<div class="card">
+
+<form id="page1">
+<h1>Temporary Parking Pass</h1>
+<p class="sub">Fill out the form below to borrow a temporary parking pass.</p>
+<label for="name">Full Name</label>
+<input id="name" name="name" required>
+<label for="room">Room / Unit Number</label>
+<input id="room" name="room" required>
+<label for="phone">Phone Number</label>
+<input id="phone" name="phone" type="tel" placeholder="(555) 555-5555" pattern="[0-9()\-\s+.]{10,}" required>
+<label for="email">Email</label>
+<input id="email" name="email" type="email" required>
+<label for="borrowDate">Date Borrowing Pass</label>
+<input id="borrowDate" name="borrowDate" type="date" required>
+<button type="submit">Next</button>
+</form>
+
+<form id="page2" class="hidden">
+<h1>Pass Agreement</h1>
+<div class="due">Your pass is due back by:<br><strong id="dueText"></strong></div>
+<div class="terms">
+By typing your name below, you agree that if the parking pass is <b>not returned by the due date</b>,
+you may be charged fees including, but not limited to, a <b>$200 parking fee</b> and the
+<b>possible towing of your vehicle</b> at your expense.
+</div>
+<label for="signature">Type your full name to sign</label>
+<input id="signature" required>
+<div class="err" id="sigErr">Signature must match the name you entered on page 1.</div>
+<div class="check"><input type="checkbox" id="agree" required><label for="agree" style="margin:0;font-weight:normal">I have read and agree to the terms above.</label></div>
+<button type="submit" id="submitBtn">Submit Request</button>
+<button type="button" class="secondary" id="backBtn">Back</button>
+</form>
+
+<div id="page3" class="hidden success">
+<h1>&#10004; Request Submitted</h1>
+<p>A confirmation email has been sent to <b id="confEmail"></b>.</p>
+<p>Please return your pass by <b id="confDue"></b>. You will get a reminder 24 hours before it is due.</p>
+</div>
+
+</div>
+<script>
+const SCRIPT_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+const $ = id => document.getElementById(id);
+const fmt = d => d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+$('borrowDate').valueAsDate = new Date();
+let data = {};
+
+$('page1').addEventListener('submit', e => {
+  e.preventDefault();
+  const b = new Date($('borrowDate').value + 'T12:00:00');
+  const due = new Date(b); due.setDate(due.getDate() + 14);
+  data = {name:$('name').value.trim(), room:$('room').value.trim(), phone:$('phone').value.trim(),
+          email:$('email').value.trim(), borrowDate:$('borrowDate').value, dueDate:due.toISOString().slice(0,10)};
+  $('dueText').textContent = fmt(due);
+  $('page1').classList.add('hidden'); $('page2').classList.remove('hidden');
+});
+
+$('backBtn').onclick = () => { $('page2').classList.add('hidden'); $('page1').classList.remove('hidden'); };
+
+$('page2').addEventListener('submit', async e => {
+  e.preventDefault();
+  if ($('signature').value.trim().toLowerCase() !== data.name.toLowerCase()) { $('sigErr').style.display='block'; return; }
+  $('sigErr').style.display='none';
+  $('submitBtn').disabled = true; $('submitBtn').textContent = 'Submitting...';
+  data.signature = $('signature').value.trim();
+  try {
+    await fetch(SCRIPT_URL, {method:'POST', mode:'no-cors', body:new URLSearchParams(data)});
+    $('confEmail').textContent = data.email; $('confDue').textContent = $('dueText').textContent;
+    $('page2').classList.add('hidden'); $('page3').classList.remove('hidden');
+  } catch(err) {
+    alert('Something went wrong. Please try again or contact the leasing office.');
+    $('submitBtn').disabled = false; $('submitBtn').textContent = 'Submit Request';
+  }
+});
+</script>
+</body>
+</html>
